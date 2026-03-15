@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Getter
 @Setter
+@Builder
 public class Alert {
 
     @Id
@@ -27,7 +28,7 @@ public class Alert {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable=false)
-    private String alertType;
+    private AlertType alertType;
 
     @Column(name="created_at",nullable=false,updatable=false)
     private LocalDateTime createdAt;
@@ -36,8 +37,14 @@ public class Alert {
     @JoinColumn(name="user_id",nullable=false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+
     @PrePersist
     public void onCreate(){
+
         this.createdAt=LocalDateTime.now();
     }
 }

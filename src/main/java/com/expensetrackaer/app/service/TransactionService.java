@@ -15,7 +15,7 @@ public interface TransactionService {
     void deleteTransaction(Long id);
 
     Page<TransactionResponse> getTransactions(
-            Month month,
+            Integer month,
             Integer year,
             TransactionType type,
             Pageable pageable

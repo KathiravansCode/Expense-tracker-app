@@ -24,10 +24,10 @@ public class Budget {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable=false)
+    @Column(name="budget_month",nullable=false)
     private Month month;
 
-    @Column(nullable=false)
+    @Column(name="budget_year",nullable=false)
     private Integer year;
 
     @Column(name="limit_amount",nullable=false,precision = 15, scale = 2)

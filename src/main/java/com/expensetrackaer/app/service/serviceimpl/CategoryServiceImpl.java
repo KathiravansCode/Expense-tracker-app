@@ -18,12 +18,16 @@ import java.util.List;
 
 @Service
 @Transactional
-@RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
 
+    public CategoryServiceImpl(CategoryRepository categoryRepository,TransactionRepository transactionRepository,UserRepository userRepository){
+        this.categoryRepository=categoryRepository;
+        this.transactionRepository=transactionRepository;
+        this.userRepository=userRepository;
+    }
     private Long getCurrentUserId() {
 
         return 1L; // temporary until JWT

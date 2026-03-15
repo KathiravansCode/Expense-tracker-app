@@ -5,14 +5,15 @@ import com.expensetrackaer.app.entity.dto.SpendingTrendResponse;
 import com.expensetrackaer.app.entity.dto.SummaryResponse;
 import com.expensetrackaer.app.entity.model.Month;
 import com.expensetrackaer.app.repository.AnalyticsRepository;
-import com.expensetrackaer.app.repository.TransactionRepository;
 import com.expensetrackaer.app.service.AnalyticsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+@Service
 public class AnalyticsServiceImpl implements AnalyticsService {
 
     private final AnalyticsRepository analyticsRepository;
@@ -42,25 +43,25 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
-    public SummaryResponse getSummary(Month month, Integer year) {
+    public SummaryResponse getSummary(Integer month, Integer year) {
         Long userId = getCurrentUserId();
 
-        LocalDate[] range = getDateRange(month, year);
+        LocalDate[] range = getDateRange(Month.fromValue(month), year);
 
-        Object[] result = analyticsRepository
+        List<Object[]> results = analyticsRepository
                 .getSummary(userId, range[0], range[1]);
-
-        BigDecimal income = (BigDecimal) result[0];
-        BigDecimal expense = (BigDecimal) result[1];
+        Object[] summary=results.getFirst();
+        BigDecimal income = new BigDecimal(summary[0].toString());
+        BigDecimal expense = new BigDecimal(summary[1].toString());
 
         return new SummaryResponse(income, expense);
     }
 
     @Override
-    public List<CategoryBreakdownResponse> getCategoryBreakdown(Month month, Integer year) {
+    public List<CategoryBreakdownResponse> getCategoryBreakdown(Integer month, Integer year) {
         Long userId = getCurrentUserId();
 
-        LocalDate[] range = getDateRange(month, year);
+        LocalDate[] range = getDateRange(Month.fromValue(month), year);
 
         return analyticsRepository.getCategoryBreakdown(
                 userId,
@@ -70,10 +71,10 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
-    public List<SpendingTrendResponse> getSpendingTrend(Month month, Integer year) {
+    public List<SpendingTrendResponse> getSpendingTrend(Integer month, Integer year) {
         Long userId = getCurrentUserId();
 
-        LocalDate[] range = getDateRange(month, year);
+        LocalDate[] range = getDateRange(Month.fromValue(month), year);
 
         return analyticsRepository.getDailySpendingTrend(
                 userId,

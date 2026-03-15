@@ -8,17 +8,14 @@ import com.expensetrackaer.app.exception.ResourceNotFoundException;
 import com.expensetrackaer.app.repository.CategoryRepository;
 import com.expensetrackaer.app.repository.TransactionRepository;
 import com.expensetrackaer.app.repository.UserRepository;
+import com.expensetrackaer.app.service.AlertService;
 import com.expensetrackaer.app.service.TransactionService;
-import jakarta.persistence.*;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -27,14 +24,15 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
-
+    private final AlertService alertService;
     @Autowired
     public TransactionServiceImpl(TransactionRepository transactionRepository,
                                   CategoryRepository categoryRepository,
-                                  UserRepository userRepository) {
+                                  UserRepository userRepository,AlertService alertService) {
         this.transactionRepository = transactionRepository;
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
+        this.alertService=alertService;
     }
 
     @Override
@@ -54,10 +52,12 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setAmount(request.getAmount());
         transaction.setDescription(request.getDescription());
         transaction.setTransactionDate(request.getTransactionDate());
+        transaction.setTransactionType(request.getTransactionType());
         transaction.setUser(user);
         transaction.setCategory(category);
 
         Transaction saved = transactionRepository.save(transaction);
+        alertService.checkAlerts(saved);
 
         return mapToResponse(saved);
 
@@ -105,7 +105,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public Page<TransactionResponse> getTransactions(Month month, Integer year, TransactionType type, Pageable pageable) {
+    public Page<TransactionResponse> getTransactions(Integer month, Integer year, TransactionType type, Pageable pageable) {
 
         Long userId = 1L;
 
@@ -114,7 +114,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         if (month != null && year != null) {
 
-            startDate = LocalDate.of(year, month.getValue(), 1);
+            startDate = LocalDate.of(year, month, 1);
 
             endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
         }

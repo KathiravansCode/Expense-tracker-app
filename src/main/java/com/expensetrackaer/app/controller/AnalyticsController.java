@@ -27,7 +27,7 @@ public class AnalyticsController {
 
     @GetMapping("/summary")
     public ApiResponse getSummary(
-            @RequestParam(required = false) Month month,
+            @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer year
     ) {
 
@@ -39,7 +39,7 @@ public class AnalyticsController {
 
     @GetMapping("/category-breakdown")
     public ApiResponse getCategoryBreakdown(
-            @RequestParam(required = false) Month month,
+            @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer year
     ) {
 
@@ -51,7 +51,7 @@ public class AnalyticsController {
 
     @GetMapping("/spending-trend")
     public ApiResponse getSpendingTrend(
-            @RequestParam(required = false) Month month,
+            @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer year
     ) {
 

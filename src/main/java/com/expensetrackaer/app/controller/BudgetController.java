@@ -5,6 +5,7 @@ import com.expensetrackaer.app.entity.dto.BudgetResponse;
 import com.expensetrackaer.app.entity.dto.CreateBudgetRequest;
 import com.expensetrackaer.app.service.BudgetService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ public class BudgetController {
 
     private final BudgetService budgetService;
 
+    @Autowired
     public BudgetController(BudgetService budgetService) {
 
         this.budgetService = budgetService;
@@ -47,9 +49,10 @@ public class BudgetController {
 
         List<BudgetResponse> budgets = budgetService.getBudgets();
 
-      ApiResponse apiResponse=new ApiResponse(true, "Budgets fetched", budgets);
+        ApiResponse apiResponse=new ApiResponse(true, "Budgets fetched", budgets);
 
         return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+
     }
 
     @PutMapping("/{id}")

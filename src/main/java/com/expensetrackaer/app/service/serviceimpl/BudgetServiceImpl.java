@@ -13,7 +13,7 @@ import com.expensetrackaer.app.repository.CategoryRepository;
 import com.expensetrackaer.app.repository.UserRepository;
 import com.expensetrackaer.app.service.BudgetService;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -21,12 +21,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class BudgetServiceImpl implements BudgetService {
     private final BudgetRepository budgetRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+
+    @Autowired
+    public BudgetServiceImpl(BudgetRepository budgetRepository,CategoryRepository categoryRepository,UserRepository userRepository){
+        this.budgetRepository=budgetRepository;
+        this.categoryRepository=categoryRepository;
+        this.userRepository=userRepository;
+    }
 
     private Long getCurrentUserId() {
         return 1L; // temporary until JWT
@@ -39,7 +45,7 @@ public class BudgetServiceImpl implements BudgetService {
         if (budgetRepository.existsByUserIdAndCategoryIdAndMonthAndYear(
                 userId,
                 budgetRequest.getCategoryId(),
-                budgetRequest.getMonth(),
+                Month.fromValue(budgetRequest.getMonth()),
                 budgetRequest.getYear())) {
 
             throw new BusinessValidationException(
@@ -54,7 +60,7 @@ public class BudgetServiceImpl implements BudgetService {
 
         Budget budget = new Budget();
         budget.setLimitAmount(budgetRequest.getLimitAmount());
-        budget.setMonth(budgetRequest.getMonth());
+        budget.setMonth(Month.fromValue(budgetRequest.getMonth()));
         budget.setYear(budgetRequest.getYear());
         budget.setUser(user);
         budget.setCategory(category);
@@ -105,7 +111,7 @@ public class BudgetServiceImpl implements BudgetService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
         budget.setLimitAmount(budgetRequest.getLimitAmount());
-        budget.setMonth(budgetRequest.getMonth());
+        budget.setMonth(Month.fromValue(budgetRequest.getMonth()));
         budget.setYear(budgetRequest.getYear());
         budget.setCategory(category);
 
@@ -138,14 +144,14 @@ public class BudgetServiceImpl implements BudgetService {
         return BudgetResponse.builder()
                 .id(budget.getId())
                 .limitAmount(budget.getLimitAmount())
-                .month(budget.getMonth())
+                .month(budget.getMonth().getValue())
                 .year(budget.getYear())
                 .categoryId(budget.getCategory().getId())
                 .categoryName(budget.getCategory().getName())
                 .build();
     }
 
-
+//onth(Month.valueOf(budget.getMonth().name()))
 
 
 }

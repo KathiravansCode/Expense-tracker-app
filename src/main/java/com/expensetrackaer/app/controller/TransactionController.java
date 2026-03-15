@@ -39,7 +39,7 @@ public class TransactionController {
     @GetMapping
     public ApiResponse getTransactions(
 
-            @RequestParam(required = false) Month month,
+            @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) TransactionType type,
 

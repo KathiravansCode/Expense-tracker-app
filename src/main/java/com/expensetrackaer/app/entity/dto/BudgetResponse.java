@@ -1,6 +1,5 @@
 package com.expensetrackaer.app.entity.dto;
 
-import com.expensetrackaer.app.entity.model.Month;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -16,7 +15,7 @@ public class BudgetResponse {
 
     private BigDecimal limitAmount;
 
-    private Month month;
+    private Integer month;
 
     private Integer year;
 

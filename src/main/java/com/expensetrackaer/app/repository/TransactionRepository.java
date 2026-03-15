@@ -47,6 +47,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             Pageable pageable
     );
 
+    @Query("""
+       SELECT t FROM Transaction t
+       WHERE t.user.id = :userId
+       AND FUNCTION('MONTH', t.transactionDate) = :month
+       AND FUNCTION('YEAR', t.transactionDate) = :year
+       ORDER BY t.transactionDate DESC
+       """)
+    List<Transaction> findTransactionsForExport(
+            Long userId,
+            int month,
+            int year
+    );//this should be checked
+
 
 
     boolean existsByCategory_Id(Long id);

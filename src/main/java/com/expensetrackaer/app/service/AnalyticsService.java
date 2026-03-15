@@ -7,10 +7,13 @@ import com.expensetrackaer.app.entity.model.Month;
 
 import java.util.List;
 
+
 public  interface AnalyticsService {
-    SummaryResponse getSummary(Month month, Integer year);
+    SummaryResponse getSummary(Integer month, Integer year);
 
-    List<CategoryBreakdownResponse> getCategoryBreakdown(Month month, Integer year);
+    List<CategoryBreakdownResponse> getCategoryBreakdown(Integer month, Integer year);
 
-    List<SpendingTrendResponse> getSpendingTrend(Month month, Integer year);
+    List<SpendingTrendResponse> getSpendingTrend(Integer month, Integer year);
 }
+
+

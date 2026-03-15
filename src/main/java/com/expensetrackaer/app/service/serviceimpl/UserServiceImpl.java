@@ -3,12 +3,15 @@ package com.expensetrackaer.app.service.serviceimpl;
 import com.expensetrackaer.app.entity.dto.RegisterUserRequest;
 import com.expensetrackaer.app.entity.dto.UserResponse;
 import com.expensetrackaer.app.entity.model.User;
+import com.expensetrackaer.app.exception.BusinessValidationException;
 import com.expensetrackaer.app.repository.UserRepository;
 import com.expensetrackaer.app.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.EmptyStackException;
 
+@Service
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -20,7 +23,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserResponse registerUser(RegisterUserRequest userRequest) {
 //        if(userRepository.existsByEmail(userRequest.getEmail())){
-//
+//            return new BusinessValidationException("User already exists");
 //        }
         User user=User.builder()
                 .name(userRequest.getName())

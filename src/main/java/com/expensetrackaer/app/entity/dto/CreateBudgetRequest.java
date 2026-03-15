@@ -1,9 +1,7 @@
 package com.expensetrackaer.app.entity.dto;
 
 import com.expensetrackaer.app.entity.model.Month;
-import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,13 +20,15 @@ public class CreateBudgetRequest {
     private BigDecimal limitAmount;
 
     @NotNull
-    private Month month;
+    @Min(1)
+    @Max(12)
+    private Integer month;
 
     @NotNull
     @Positive
     private Integer year;
 
-    @NotNull
+
     private Long categoryId;
 
 }
