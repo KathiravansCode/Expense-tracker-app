@@ -2,12 +2,12 @@ package com.expensetrackaer.app.service.serviceimpl;
 
 import com.expensetrackaer.app.entity.dto.AlertResponse;
 import com.expensetrackaer.app.entity.model.Alert;
-import com.expensetrackaer.app.entity.model.AlertType;
 import com.expensetrackaer.app.entity.model.Transaction;
 import com.expensetrackaer.app.exception.ResourceNotFoundException;
 import com.expensetrackaer.app.repository.AlertRepository;
 import com.expensetrackaer.app.repository.BudgetRepository;
 import com.expensetrackaer.app.repository.TransactionRepository;
+import com.expensetrackaer.app.security.SecurityUtils;
 import com.expensetrackaer.app.service.AlertService;
 import com.expensetrackaer.app.strategy.AlertStrategy;
 import jakarta.transaction.Transactional;
@@ -27,38 +27,40 @@ public class AlertServiceImpl implements AlertService {
     private final BudgetRepository budgetRepository;
     private final List<AlertStrategy> alertStrategies;
 
-    public AlertServiceImpl(AlertRepository alertRepository,TransactionRepository transactionRepository,BudgetRepository budgetRepository,List<AlertStrategy> alertStrategies){
-        this.alertRepository=alertRepository;
-        this.transactionRepository=transactionRepository;
-        this.budgetRepository=budgetRepository;
-        this.alertStrategies=alertStrategies;
+    public AlertServiceImpl(AlertRepository alertRepository,
+                            TransactionRepository transactionRepository,
+                            BudgetRepository budgetRepository,
+                            List<AlertStrategy> alertStrategies) {
+        this.alertRepository = alertRepository;
+        this.transactionRepository = transactionRepository;
+        this.budgetRepository = budgetRepository;
+        this.alertStrategies = alertStrategies;
     }
 
+    // ✅ userId resolved from JWT — not passed as a parameter
     @Override
-    public Page<AlertResponse> getAlerts(Long userId, Pageable pageable) {
-
-        Page<Alert> alerts =
-                alertRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
-
-        return alerts.map(this::mapToResponse);
+    public Page<AlertResponse> getAlerts(Pageable pageable) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return alertRepository
+                .findByUserIdOrderByCreatedAtDesc(userId, pageable)
+                .map(this::mapToResponse);
     }
 
+    // ✅ userId resolved from JWT — ownership verified before marking read
     @Override
-    public void markAlertAsRead(Long alertId, Long userId) {
+    public void markAlertAsRead(Long alertId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+
         Alert alert = alertRepository
                 .findByIdAndUserId(alertId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alert not found"));
 
         alert.setIsRead(true);
-
         alertRepository.save(alert);
-
-
     }
 
     @Override
     public void checkAlerts(Transaction transaction) {
-
         for (AlertStrategy strategy : alertStrategies) {
             strategy.check(transaction);
         }
@@ -77,36 +79,16 @@ public class AlertServiceImpl implements AlertService {
         );
     }
 
-    private void createAlert(
-            Transaction transaction,
-            AlertType type,
-            String message
-    ) {
-
-        Alert alert = Alert.builder()
-                .alertType(type)
-                .message(message)
-                .user(transaction.getUser())
-                .category(transaction.getCategory())
-                .isRead(false)
-                .build();
-
-        alertRepository.save(alert);
-    }
-
     private AlertResponse mapToResponse(Alert alert) {
-
         return AlertResponse.builder()
                 .id(alert.getId())
                 .alertType(alert.getAlertType())
                 .message(alert.getMessage())
                 .isRead(alert.getIsRead())
-                .categoryName( alert.getCategory() != null
+                .categoryName(alert.getCategory() != null
                         ? alert.getCategory().getName()
                         : null)
                 .createdAt(alert.getCreatedAt())
                 .build();
     }
-
 }
-

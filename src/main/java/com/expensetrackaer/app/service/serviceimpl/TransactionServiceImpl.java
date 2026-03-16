@@ -8,6 +8,7 @@ import com.expensetrackaer.app.exception.ResourceNotFoundException;
 import com.expensetrackaer.app.repository.CategoryRepository;
 import com.expensetrackaer.app.repository.TransactionRepository;
 import com.expensetrackaer.app.repository.UserRepository;
+import com.expensetrackaer.app.security.SecurityUtils;
 import com.expensetrackaer.app.service.AlertService;
 import com.expensetrackaer.app.service.TransactionService;
 import jakarta.transaction.Transactional;
@@ -25,58 +26,67 @@ public class TransactionServiceImpl implements TransactionService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final AlertService alertService;
+
     @Autowired
     public TransactionServiceImpl(TransactionRepository transactionRepository,
                                   CategoryRepository categoryRepository,
-                                  UserRepository userRepository,AlertService alertService) {
+                                  UserRepository userRepository,
+                                  AlertService alertService) {
         this.transactionRepository = transactionRepository;
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
-        this.alertService=alertService;
+        this.alertService = alertService;
+    }
+
+    private Long getCurrentUserId() {
+        return SecurityUtils.getCurrentUserId();
     }
 
     @Override
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
 
-
-        Long userId = 1L; // temporary until authentication
+        Long userId = getCurrentUserId();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessValidationException("User not found"));
 
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new BusinessValidationException("Category not found"));
+        // ✅ findAccessibleCategory — allows global (user IS NULL) and user's own categories
+        // Previously used findByIdAndUserId which blocked global categories
+        Category category = categoryRepository
+                .findAccessibleCategory(request.getCategoryId(), userId)
+                .orElseThrow(() -> new BusinessValidationException(
+                        "Category not found or not accessible"));
 
         Transaction transaction = new Transaction();
-
         transaction.setAmount(request.getAmount());
         transaction.setDescription(request.getDescription());
         transaction.setTransactionDate(request.getTransactionDate());
         transaction.setTransactionType(request.getTransactionType());
+        transaction.setPaymentMode(request.getPaymentMode());
         transaction.setUser(user);
         transaction.setCategory(category);
 
         Transaction saved = transactionRepository.save(transaction);
+
         alertService.checkAlerts(saved);
 
         return mapToResponse(saved);
-
-
     }
 
     @Override
     public TransactionResponse updateTransaction(Long id, CreateTransactionRequest request) {
-        Long userId = 1L;
+
+        Long userId = getCurrentUserId();
 
         Transaction transaction = transactionRepository
                 .findByIdAndUserId(id, userId)
-                .orElseThrow(() ->
-                        new BusinessValidationException("Transaction not found"));
+                .orElseThrow(() -> new BusinessValidationException("Transaction not found"));
 
+        // ✅ Same here — allow global and user-owned categories
         Category category = categoryRepository
-                .findByIdAndUserId(request.getCategoryId(), userId)
-                .orElseThrow(() ->
-                        new BusinessValidationException("Category not found or not owned by user"));
+                .findAccessibleCategory(request.getCategoryId(), userId)
+                .orElseThrow(() -> new BusinessValidationException(
+                        "Category not found or not accessible"));
 
         transaction.setAmount(request.getAmount());
         transaction.setDescription(request.getDescription());
@@ -85,64 +95,80 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setPaymentMode(request.getPaymentMode());
         transaction.setCategory(category);
 
-        Transaction updatedTransaction = transactionRepository.save(transaction);
+        // Re-evaluate budget alerts since amount or category may have changed
+        alertService.reEvaluateBudgetAlerts(
+                userId,
+                category.getId(),
+                request.getTransactionDate()
+        );
 
-        return mapToResponse(updatedTransaction);
+        Transaction updated = transactionRepository.save(transaction);
 
+        return mapToResponse(updated);
     }
 
     @Override
     public void deleteTransaction(Long id) {
-        Long userId = 1L;
+
+        Long userId = getCurrentUserId();
 
         Transaction transaction = transactionRepository
                 .findByIdAndUserId(id, userId)
-                .orElseThrow(() ->
-                        new BusinessValidationException("Transaction not found"));
+                .orElseThrow(() -> new BusinessValidationException("Transaction not found"));
+
+        Long categoryId = transaction.getCategory().getId();
+        LocalDate date = transaction.getTransactionDate();
 
         transactionRepository.delete(transaction);
 
+        // Re-evaluate budget alerts since a transaction was removed
+        alertService.reEvaluateBudgetAlerts(userId, categoryId, date);
     }
 
     @Override
-    public Page<TransactionResponse> getTransactions(Integer month, Integer year, TransactionType type, Pageable pageable) {
-
-        Long userId = 1L;
+    public Page<TransactionResponse> getTransactions(Integer month, Integer year,
+                                                     TransactionType type, Pageable pageable) {
+        Long userId = getCurrentUserId();
 
         LocalDate startDate = null;
         LocalDate endDate = null;
 
         if (month != null && year != null) {
-
             startDate = LocalDate.of(year, month, 1);
-
             endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
         }
 
-        Page<Transaction> transactions = transactionRepository
-                .findAllByFilters(userId, type, startDate, endDate, pageable);
-
-        return transactions.map(this::mapToResponse);
+        return transactionRepository
+                .findAllByFilters(userId, type, startDate, endDate, pageable)
+                .map(this::mapToResponse);
     }
 
     @Override
     public TransactionResponse getTransactionById(Long id) {
 
-       Transaction transaction=transactionRepository.findById(id).
-               orElseThrow(()->new ResourceNotFoundException("Transaction Not found for the Given Id"));
+        Long userId = getCurrentUserId();
 
-       return mapToResponse(transaction);
+        Transaction transaction = transactionRepository
+                .findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
+
+        return mapToResponse(transaction);
     }
 
     private TransactionResponse mapToResponse(Transaction transaction) {
 
         TransactionResponse response = new TransactionResponse();
-
         response.setId(transaction.getId());
         response.setAmount(transaction.getAmount());
         response.setDescription(transaction.getDescription());
         response.setTransactionDate(transaction.getTransactionDate());
-
+        response.setTransactionType(transaction.getTransactionType());
+        response.setIsUnusual(transaction.getIsUnusual());
+        response.setPaymentMode(
+                transaction.getPaymentMode() != null
+                        ? transaction.getPaymentMode().name()
+                        : null
+        );
         response.setCategoryId(transaction.getCategory().getId());
         response.setCategoryName(transaction.getCategory().getName());
 

@@ -2,15 +2,13 @@ package com.expensetrackaer.app.service.serviceimpl;
 
 import com.expensetrackaer.app.entity.dto.BudgetResponse;
 import com.expensetrackaer.app.entity.dto.CreateBudgetRequest;
-import com.expensetrackaer.app.entity.model.Budget;
-import com.expensetrackaer.app.entity.model.Category;
-import com.expensetrackaer.app.entity.model.Month;
-import com.expensetrackaer.app.entity.model.User;
+import com.expensetrackaer.app.entity.model.*;
 import com.expensetrackaer.app.exception.BusinessValidationException;
 import com.expensetrackaer.app.exception.ResourceNotFoundException;
 import com.expensetrackaer.app.repository.BudgetRepository;
 import com.expensetrackaer.app.repository.CategoryRepository;
 import com.expensetrackaer.app.repository.UserRepository;
+import com.expensetrackaer.app.security.SecurityUtils;
 import com.expensetrackaer.app.service.BudgetService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,58 +21,61 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class BudgetServiceImpl implements BudgetService {
+
     private final BudgetRepository budgetRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
 
     @Autowired
-    public BudgetServiceImpl(BudgetRepository budgetRepository,CategoryRepository categoryRepository,UserRepository userRepository){
-        this.budgetRepository=budgetRepository;
-        this.categoryRepository=categoryRepository;
-        this.userRepository=userRepository;
+    public BudgetServiceImpl(BudgetRepository budgetRepository,
+                             CategoryRepository categoryRepository,
+                             UserRepository userRepository) {
+        this.budgetRepository = budgetRepository;
+        this.categoryRepository = categoryRepository;
+        this.userRepository = userRepository;
     }
 
+    // ✅ Replaced hardcoded return 1L with real user from JWT
     private Long getCurrentUserId() {
-        return 1L; // temporary until JWT
+        return SecurityUtils.getCurrentUserId();
     }
-    @Override
-    public BudgetResponse createBudget(CreateBudgetRequest budgetRequest) {
 
-        Long userId=getCurrentUserId();
+    @Override
+    public BudgetResponse createBudget(CreateBudgetRequest request) {
+
+        Long userId = getCurrentUserId();
 
         if (budgetRepository.existsByUserIdAndCategoryIdAndMonthAndYear(
                 userId,
-                budgetRequest.getCategoryId(),
-                Month.fromValue(budgetRequest.getMonth()),
-                budgetRequest.getYear())) {
-
+                request.getCategoryId(),
+                Month.fromValue(request.getMonth()),
+                request.getYear())) {
             throw new BusinessValidationException(
-                    "Budget already exists for this category and month"
-            );
+                    "Budget already exists for this category and month");
         }
 
-       User user = userRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        Category category = categoryRepository.findById(budgetRequest.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+        // ✅ findAccessibleCategory — allows global (user IS NULL) and user's own categories
+        Category category = categoryRepository
+                .findAccessibleCategory(request.getCategoryId(), userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found or not accessible"));
 
         Budget budget = new Budget();
-        budget.setLimitAmount(budgetRequest.getLimitAmount());
-        budget.setMonth(Month.fromValue(budgetRequest.getMonth()));
-        budget.setYear(budgetRequest.getYear());
+        budget.setLimitAmount(request.getLimitAmount());
+        budget.setMonth(Month.fromValue(request.getMonth()));
+        budget.setYear(request.getYear());
         budget.setUser(user);
         budget.setCategory(category);
 
-        Budget saved = budgetRepository.save(budget);
-
-        return mapToBudgetResponse(saved);
+        return mapToBudgetResponse(budgetRepository.save(budget));
     }
 
     @Override
     public List<BudgetResponse> getBudgets() {
-        Long userId = 1L;
-
-        return budgetRepository.findByUserId(userId)
+        return budgetRepository.findByUserId(getCurrentUserId())
                 .stream()
                 .map(this::mapToBudgetResponse)
                 .collect(Collectors.toList());
@@ -82,65 +83,58 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     public BudgetResponse getCurrentBudget() {
-        Long userId = 1L;
 
+        Long userId = getCurrentUserId();
         LocalDate now = LocalDate.now();
-
-        Month currentMonth = Month.values()[now.getMonthValue() - 1];
-
-        Integer year = now.getYear();
+        Month currentMonth = Month.values()[now.getMonthValue()-1];
 
         Budget budget = budgetRepository
-                .findByUserIdAndMonthAndYear(userId, currentMonth, year)
-                .orElseThrow(() -> new BusinessValidationException("Budget not found for current month"));
-
-
+                .findByUserIdAndMonthAndYear(userId, currentMonth, now.getYear())
+                .orElseThrow(() -> new BusinessValidationException(
+                        "No budget found for the current month"));
 
         return mapToBudgetResponse(budget);
     }
 
     @Override
-    public BudgetResponse updateBudget(Long id,CreateBudgetRequest budgetRequest) {
+    public BudgetResponse updateBudget(Long id, CreateBudgetRequest request) {
+
         Long userId = getCurrentUserId();
 
-        Budget budget = budgetRepository
-                .findByIdAndUserId(id, userId)
+        Budget budget = budgetRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
 
-        Category category = categoryRepository.findById(budgetRequest.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        // ✅ findAccessibleCategory — allows global and user-owned categories
+        Category category = categoryRepository
+                .findAccessibleCategory(request.getCategoryId(), userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found or not accessible"));
 
-        budget.setLimitAmount(budgetRequest.getLimitAmount());
-        budget.setMonth(Month.fromValue(budgetRequest.getMonth()));
-        budget.setYear(budgetRequest.getYear());
+        budget.setLimitAmount(request.getLimitAmount());
+        budget.setMonth(Month.fromValue(request.getMonth()));
+        budget.setYear(request.getYear());
         budget.setCategory(category);
 
-        Budget updated = budgetRepository.save(budget);
-
-        return mapToBudgetResponse(updated);
+        return mapToBudgetResponse(budgetRepository.save(budget));
     }
 
     @Override
     public BudgetResponse getBudget(Long id) {
-      Budget budget=budgetRepository.findById(id).orElseThrow(()->new ResourceNotFoundException("No budget found"));
-
-      return mapToBudgetResponse(budget);
+        Long userId = getCurrentUserId();
+        Budget budget = budgetRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
+        return mapToBudgetResponse(budget);
     }
 
     @Override
     public void deleteBudget(Long id) {
-
         Long userId = getCurrentUserId();
-
-        Budget budget = budgetRepository
-                .findByIdAndUserId(id, userId)
+        Budget budget = budgetRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
-
         budgetRepository.delete(budget);
     }
 
     private BudgetResponse mapToBudgetResponse(Budget budget) {
-
         return BudgetResponse.builder()
                 .id(budget.getId())
                 .limitAmount(budget.getLimitAmount())
@@ -150,8 +144,4 @@ public class BudgetServiceImpl implements BudgetService {
                 .categoryName(budget.getCategory().getName())
                 .build();
     }
-
-//onth(Month.valueOf(budget.getMonth().name()))
-
-
 }

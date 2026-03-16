@@ -3,8 +3,8 @@ package com.expensetrackaer.app.service.serviceimpl;
 import com.expensetrackaer.app.entity.dto.CategoryBreakdownResponse;
 import com.expensetrackaer.app.entity.dto.SpendingTrendResponse;
 import com.expensetrackaer.app.entity.dto.SummaryResponse;
-import com.expensetrackaer.app.entity.model.Month;
 import com.expensetrackaer.app.repository.AnalyticsRepository;
+import com.expensetrackaer.app.security.SecurityUtils;
 import com.expensetrackaer.app.service.AnalyticsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,69 +18,50 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private final AnalyticsRepository analyticsRepository;
 
-
     @Autowired
     public AnalyticsServiceImpl(AnalyticsRepository analyticsRepository) {
         this.analyticsRepository = analyticsRepository;
-
     }
 
+    // ✅ Replaced hardcoded return 1L with real user from JWT
     private Long getCurrentUserId() {
-
-        return 1L; // later replaced with JWT user
+        return SecurityUtils.getCurrentUserId();
     }
 
-    private LocalDate[] getDateRange(Month month, Integer year) {
-
+    private LocalDate[] getDateRange(Integer month, Integer year) {
         if (month == null || year == null) {
             return new LocalDate[]{null, null};
         }
-
-        LocalDate startDate = LocalDate.of(year, month.getValue(), 1);
-        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
-
-        return new LocalDate[]{startDate, endDate};
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        return new LocalDate[]{startDate, startDate.withDayOfMonth(startDate.lengthOfMonth())};
     }
 
     @Override
     public SummaryResponse getSummary(Integer month, Integer year) {
+
         Long userId = getCurrentUserId();
+        LocalDate[] range = getDateRange(month, year);
 
-        LocalDate[] range = getDateRange(Month.fromValue(month), year);
+        List<Object[]> results = analyticsRepository.getSummary(userId, range[0], range[1]);
+        Object[] row = results.getFirst();
 
-        List<Object[]> results = analyticsRepository
-                .getSummary(userId, range[0], range[1]);
-        Object[] summary=results.getFirst();
-        BigDecimal income = new BigDecimal(summary[0].toString());
-        BigDecimal expense = new BigDecimal(summary[1].toString());
-
-        return new SummaryResponse(income, expense);
+        return new SummaryResponse(
+                new BigDecimal(row[0].toString()),
+                new BigDecimal(row[1].toString())
+        );
     }
 
     @Override
     public List<CategoryBreakdownResponse> getCategoryBreakdown(Integer month, Integer year) {
         Long userId = getCurrentUserId();
-
-        LocalDate[] range = getDateRange(Month.fromValue(month), year);
-
-        return analyticsRepository.getCategoryBreakdown(
-                userId,
-                range[0],
-                range[1]
-        );
+        LocalDate[] range = getDateRange(month, year);
+        return analyticsRepository.getCategoryBreakdown(userId, range[0], range[1]);
     }
 
     @Override
     public List<SpendingTrendResponse> getSpendingTrend(Integer month, Integer year) {
         Long userId = getCurrentUserId();
-
-        LocalDate[] range = getDateRange(Month.fromValue(month), year);
-
-        return analyticsRepository.getDailySpendingTrend(
-                userId,
-                range[0],
-                range[1]
-        );
-
+        LocalDate[] range = getDateRange(month, year);
+        return analyticsRepository.getDailySpendingTrend(userId, range[0], range[1]);
     }
 }

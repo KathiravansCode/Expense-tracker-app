@@ -1,6 +1,5 @@
 package com.expensetrackaer.app.service;
 
-
 import com.expensetrackaer.app.entity.dto.AlertResponse;
 import com.expensetrackaer.app.entity.model.Transaction;
 import org.springframework.data.domain.Page;
@@ -10,13 +9,12 @@ import java.time.LocalDate;
 
 public interface AlertService {
 
+    // ✅ Removed userId params — resolved from JWT inside the impl
+    Page<AlertResponse> getAlerts(Pageable pageable);
 
-    Page<AlertResponse> getAlerts(Long userId, Pageable pageable);
-
-    void markAlertAsRead(Long alertId, Long userId);
+    void markAlertAsRead(Long alertId);
 
     void checkAlerts(Transaction transaction);
-
 
     void reEvaluateBudgetAlerts(Long userId, Long categoryId, LocalDate date);
 }
