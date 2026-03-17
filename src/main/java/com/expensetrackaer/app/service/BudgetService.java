@@ -11,7 +11,7 @@ BudgetResponse createBudget(CreateBudgetRequest budgetRequest);
 
 List<BudgetResponse> getBudgets();
 
-BudgetResponse getCurrentBudget();
+List<BudgetResponse> getCurrentBudget();
 
 BudgetResponse updateBudget(Long id,CreateBudgetRequest budgetRequest);
 

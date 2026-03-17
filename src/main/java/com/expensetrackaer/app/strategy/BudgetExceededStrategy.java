@@ -1,9 +1,12 @@
 package com.expensetrackaer.app.strategy;
 
+import com.expensetrackaer.app.entity.dto.AlertResponse;
 import com.expensetrackaer.app.entity.model.*;
 import com.expensetrackaer.app.repository.AlertRepository;
 import com.expensetrackaer.app.repository.BudgetRepository;
 import com.expensetrackaer.app.repository.TransactionRepository;
+import com.expensetrackaer.app.service.AlertService;
+import com.expensetrackaer.app.service.SseEmitterService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -15,12 +18,13 @@ public class BudgetExceededStrategy implements AlertStrategy{
     private final TransactionRepository transactionRepository;
     private final AlertRepository alertRepository;
     private final BudgetRepository budgetRepository;
-
+    private final SseEmitterService sseEmitterService;
     @Autowired
-    public BudgetExceededStrategy(TransactionRepository transactionRepository,AlertRepository alertRepository,BudgetRepository budgetRepository){
+    public BudgetExceededStrategy(TransactionRepository transactionRepository,AlertRepository alertRepository,BudgetRepository budgetRepository,SseEmitterService sseEmitterService){
         this.transactionRepository=transactionRepository;
         this.alertRepository=alertRepository;
         this.budgetRepository=budgetRepository;
+        this.sseEmitterService=sseEmitterService;
     }
     @Override
     public void check(Transaction transaction) {
@@ -88,7 +92,18 @@ public class BudgetExceededStrategy implements AlertStrategy{
                                     .isRead(false)
                                     .build();
 
-                            alertRepository.save(alert);
+                           Alert saved= alertRepository.save(alert);
+
+                            AlertResponse response = AlertResponse.builder()
+                                    .id(saved.getId())
+                                    .alertType(saved.getAlertType())
+                                    .message(saved.getMessage())
+                                    .isRead(saved.getIsRead())
+                                    .categoryName(transaction.getCategory().getName())
+                                    .createdAt(saved.getCreatedAt())
+                                    .build();
+
+                            sseEmitterService.sendAlert(userId, response);
                         }
                     }
                 });

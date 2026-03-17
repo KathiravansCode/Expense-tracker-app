@@ -22,7 +22,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     // ── Used by createCategory() duplicate check ──────────────────
     // Checks if user already has a custom category with the same name
-    boolean existsByNameAndUserId(String name, Long userId);
+//    boolean existsByNameAndUserId(String name, Long userId);
 
     // ── Used by updateCategory() and deleteCategory() ────────────
     // Only fetches the user's own custom categories — global ones are excluded
@@ -39,8 +39,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     Optional<Category> findAccessibleCategory(Long id, Long userId);
 
     // ── Used by DatabaseSeeder to avoid duplicate global categories ─
-    boolean existsByNameAndUserIsNull(String name);
+//    boolean existsByNameAndUserIsNull(String name);
 
     // ── Used by deleteCategory() ──────────────────────────────────
     boolean existsById(Long categoryId);
+
+    boolean existsByNameIgnoreCaseAndUserId(String name, Long userId);
+    boolean existsByNameIgnoreCaseAndUserIsNull(String name);
 }

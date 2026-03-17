@@ -7,6 +7,7 @@ import com.expensetrackaer.app.exception.BusinessValidationException;
 import com.expensetrackaer.app.exception.ResourceNotFoundException;
 import com.expensetrackaer.app.repository.CategoryRepository;
 import com.expensetrackaer.app.repository.TransactionRepository;
+import com.expensetrackaer.app.repository.TransactionSpecification;
 import com.expensetrackaer.app.repository.UserRepository;
 import com.expensetrackaer.app.security.SecurityUtils;
 import com.expensetrackaer.app.service.AlertService;
@@ -50,8 +51,6 @@ public class TransactionServiceImpl implements TransactionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessValidationException("User not found"));
 
-        // ✅ findAccessibleCategory — allows global (user IS NULL) and user's own categories
-        // Previously used findByIdAndUserId which blocked global categories
         Category category = categoryRepository
                 .findAccessibleCategory(request.getCategoryId(), userId)
                 .orElseThrow(() -> new BusinessValidationException(
@@ -82,7 +81,6 @@ public class TransactionServiceImpl implements TransactionService {
                 .findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new BusinessValidationException("Transaction not found"));
 
-        // ✅ Same here — allow global and user-owned categories
         Category category = categoryRepository
                 .findAccessibleCategory(request.getCategoryId(), userId)
                 .orElseThrow(() -> new BusinessValidationException(
@@ -95,7 +93,6 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setPaymentMode(request.getPaymentMode());
         transaction.setCategory(category);
 
-        // Re-evaluate budget alerts since amount or category may have changed
         alertService.reEvaluateBudgetAlerts(
                 userId,
                 category.getId(),
@@ -121,7 +118,6 @@ public class TransactionServiceImpl implements TransactionService {
 
         transactionRepository.delete(transaction);
 
-        // Re-evaluate budget alerts since a transaction was removed
         alertService.reEvaluateBudgetAlerts(userId, categoryId, date);
     }
 
@@ -138,8 +134,14 @@ public class TransactionServiceImpl implements TransactionService {
             endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
         }
 
+        // ✅ Specification builds query dynamically — only adds predicates for non-null values
+        // Fixes PostgreSQL "could not determine data type of parameter" error
+        // that occurred with the old JPQL null check pattern (:type IS NULL OR ...)
         return transactionRepository
-                .findAllByFilters(userId, type, startDate, endDate, pageable)
+                .findAll(
+                        TransactionSpecification.filterBy(userId, type, startDate, endDate),
+                        pageable
+                )
                 .map(this::mapToResponse);
     }
 

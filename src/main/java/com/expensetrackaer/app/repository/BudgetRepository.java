@@ -13,7 +13,7 @@ public interface BudgetRepository extends JpaRepository<Budget,Long> {
 
     List<Budget> findByUserId(Long id);
 
-    Optional<Budget> findByUserIdAndMonthAndYear(Long id, Month month, Integer year);
+    List<Budget> findByUserIdAndMonthAndYear(Long id, Month month, Integer year);
 
     Optional<Budget> findByIdAndUserId(Long id,Long userId);
 

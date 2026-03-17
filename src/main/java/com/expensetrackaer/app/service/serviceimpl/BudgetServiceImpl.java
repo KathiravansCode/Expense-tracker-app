@@ -82,18 +82,21 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
-    public BudgetResponse getCurrentBudget() {
-
+    public List<BudgetResponse> getCurrentBudget() {
         Long userId = getCurrentUserId();
         LocalDate now = LocalDate.now();
-        Month currentMonth = Month.values()[now.getMonthValue()-1];
+        Month currentMonth = Month.values()[now.getMonthValue() - 1];
 
-        Budget budget = budgetRepository
-                .findByUserIdAndMonthAndYear(userId, currentMonth, now.getYear())
-                .orElseThrow(() -> new BusinessValidationException(
-                        "No budget found for the current month"));
+        List<Budget> budgets = budgetRepository
+                .findByUserIdAndMonthAndYear(userId, currentMonth, now.getYear());
 
-        return mapToBudgetResponse(budget);
+        if (budgets.isEmpty()) {
+            throw new BusinessValidationException("No budget found for the current month");
+        }
+
+        return budgets.stream()
+                .map(this::mapToBudgetResponse)
+                .collect(Collectors.toList());
     }
 
     @Override

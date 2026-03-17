@@ -9,8 +9,10 @@ import com.expensetrackaer.app.repository.BudgetRepository;
 import com.expensetrackaer.app.repository.TransactionRepository;
 import com.expensetrackaer.app.security.SecurityUtils;
 import com.expensetrackaer.app.service.AlertService;
+import com.expensetrackaer.app.service.SseEmitterService;
 import com.expensetrackaer.app.strategy.AlertStrategy;
 import jakarta.transaction.Transactional;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,18 +28,20 @@ public class AlertServiceImpl implements AlertService {
     private final TransactionRepository transactionRepository;
     private final BudgetRepository budgetRepository;
     private final List<AlertStrategy> alertStrategies;
+    private final SseEmitterService sseEmitterService;
 
     public AlertServiceImpl(AlertRepository alertRepository,
                             TransactionRepository transactionRepository,
                             BudgetRepository budgetRepository,
-                            List<AlertStrategy> alertStrategies) {
+                            @Lazy List<AlertStrategy> alertStrategies,
+                            SseEmitterService sseEmitterService) {
         this.alertRepository = alertRepository;
         this.transactionRepository = transactionRepository;
         this.budgetRepository = budgetRepository;
         this.alertStrategies = alertStrategies;
+        this.sseEmitterService = sseEmitterService;
     }
 
-    // ✅ userId resolved from JWT — not passed as a parameter
     @Override
     public Page<AlertResponse> getAlerts(Pageable pageable) {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -46,15 +50,12 @@ public class AlertServiceImpl implements AlertService {
                 .map(this::mapToResponse);
     }
 
-    // ✅ userId resolved from JWT — ownership verified before marking read
     @Override
     public void markAlertAsRead(Long alertId) {
         Long userId = SecurityUtils.getCurrentUserId();
-
         Alert alert = alertRepository
                 .findByIdAndUserId(alertId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alert not found"));
-
         alert.setIsRead(true);
         alertRepository.save(alert);
     }
@@ -70,13 +71,18 @@ public class AlertServiceImpl implements AlertService {
     public void reEvaluateBudgetAlerts(Long userId, Long categoryId, LocalDate date) {
         LocalDate startDate = date.withDayOfMonth(1);
         LocalDate endDate = date.withDayOfMonth(date.lengthOfMonth());
-
         alertRepository.deleteBudgetAlerts(
                 userId,
                 categoryId,
                 startDate.atStartOfDay(),
                 endDate.atTime(23, 59, 59)
         );
+    }
+
+    // Called by every strategy after saving an alert
+    @Override
+    public void pushAlertToUser(Long userId, Alert alert) {
+        sseEmitterService.sendAlert(userId, mapToResponse(alert));
     }
 
     private AlertResponse mapToResponse(Alert alert) {

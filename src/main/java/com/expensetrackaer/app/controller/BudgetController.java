@@ -37,7 +37,7 @@ public class BudgetController {
     @GetMapping("/current")
     public ResponseEntity<ApiResponse> getCurrentBudget() {
 
-        BudgetResponse response = budgetService.getCurrentBudget();
+        List<BudgetResponse> response = budgetService.getCurrentBudget();
 
        ApiResponse apiResponse=new ApiResponse(true, "Current budget fetched", response);
 

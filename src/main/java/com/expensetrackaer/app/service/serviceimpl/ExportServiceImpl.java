@@ -10,6 +10,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -25,11 +26,16 @@ public class ExportServiceImpl implements ExportService {
     @Override
     public Resource exportTransactions(Long userId, int month, int year) {
 
-        // ✅ Ignore the userId param passed from controller — always use JWT instead
         Long currentUserId = SecurityUtils.getCurrentUserId();
+
+//        LocalDate startDate = LocalDate.of(year, month, 1);
+//        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
 
         List<Transaction> transactions =
                 transactionRepository.findTransactionsForExport(currentUserId, month, year);
+
+
+
 
         StringBuilder csv = new StringBuilder();
         csv.append("Date,Category,Type,Amount,Description\n");

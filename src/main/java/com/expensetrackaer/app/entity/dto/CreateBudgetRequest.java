@@ -28,7 +28,7 @@ public class CreateBudgetRequest {
     @Positive
     private Integer year;
 
-
+    @NotNull(message = "Category is required for a budget")
     private Long categoryId;
 
 }

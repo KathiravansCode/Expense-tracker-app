@@ -23,17 +23,30 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         this.analyticsRepository = analyticsRepository;
     }
 
-    // ✅ Replaced hardcoded return 1L with real user from JWT
     private Long getCurrentUserId() {
         return SecurityUtils.getCurrentUserId();
     }
 
+    // ✅ Always returns actual dates — never null
+    // Previously returned {null, null} when month/year not provided
+    // which caused PostgreSQL "could not determine data type" error
+    // Now defaults to full current year when no month/year is given
     private LocalDate[] getDateRange(Integer month, Integer year) {
-        if (month == null || year == null) {
-            return new LocalDate[]{null, null};
+
+        // If year not provided, default to current year
+        int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
+
+        if (month != null) {
+            // Specific month requested — return just that month's range
+            LocalDate startDate = LocalDate.of(resolvedYear, month, 1);
+            LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+            return new LocalDate[]{startDate, endDate};
+        } else {
+            // No month provided — return full year range
+            LocalDate startDate = LocalDate.of(resolvedYear, 1, 1);
+            LocalDate endDate = LocalDate.of(resolvedYear, 12, 31);
+            return new LocalDate[]{startDate, endDate};
         }
-        LocalDate startDate = LocalDate.of(year, month, 1);
-        return new LocalDate[]{startDate, startDate.withDayOfMonth(startDate.lengthOfMonth())};
     }
 
     @Override
@@ -53,15 +66,19 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public List<CategoryBreakdownResponse> getCategoryBreakdown(Integer month, Integer year) {
+
         Long userId = getCurrentUserId();
         LocalDate[] range = getDateRange(month, year);
+
         return analyticsRepository.getCategoryBreakdown(userId, range[0], range[1]);
     }
 
     @Override
     public List<SpendingTrendResponse> getSpendingTrend(Integer month, Integer year) {
+
         Long userId = getCurrentUserId();
         LocalDate[] range = getDateRange(month, year);
+
         return analyticsRepository.getDailySpendingTrend(userId, range[0], range[1]);
     }
 }

@@ -1,6 +1,7 @@
 package com.expensetrackaer.app.service;
 
 import com.expensetrackaer.app.entity.dto.AlertResponse;
+import com.expensetrackaer.app.entity.model.Alert;
 import com.expensetrackaer.app.entity.model.Transaction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,4 +18,6 @@ public interface AlertService {
     void checkAlerts(Transaction transaction);
 
     void reEvaluateBudgetAlerts(Long userId, Long categoryId, LocalDate date);
+
+    void pushAlertToUser(Long userId, Alert alert);
 }

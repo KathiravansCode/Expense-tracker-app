@@ -45,14 +45,14 @@ public class CategoryServiceImpl implements CategoryService {
         Long userId = getCurrentUserId();
 
         // Check duplicate among user's own custom categories
-        if (categoryRepository.existsByNameAndUserId(request.getName(), userId)) {
+        if (categoryRepository.existsByNameIgnoreCaseAndUserId(request.getName(), userId)) {
             throw new BusinessValidationException(
                     "You already have a custom category with this name");
         }
 
         // Prevent creating a custom category with the same name as a global one
         // "Food" is already global — no point duplicating it per user
-        if (categoryRepository.existsByNameAndUserIsNull(request.getName())) {
+        if (categoryRepository.existsByNameIgnoreCaseAndUserIsNull(request.getName())) {
             throw new BusinessValidationException(
                     "'" + request.getName() + "' already exists as a default category");
         }
