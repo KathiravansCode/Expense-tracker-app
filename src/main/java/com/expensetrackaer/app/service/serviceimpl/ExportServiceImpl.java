@@ -25,14 +25,24 @@ public class ExportServiceImpl implements ExportService {
 
     @Override
     public Resource exportTransactions(Long userId, int month, int year) {
+<<<<<<< HEAD
 
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
 //        LocalDate startDate = LocalDate.of(year, month, 1);
 //        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
 
+=======
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        // Calculate the date range for the requested month and year
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+        // Pass the date range to the repository
+>>>>>>> 46bb539 (Should be moved to production)
         List<Transaction> transactions =
-                transactionRepository.findTransactionsForExport(currentUserId, month, year);
+                transactionRepository.findTransactionsForExport(currentUserId, startDate, endDate);
 
 
 

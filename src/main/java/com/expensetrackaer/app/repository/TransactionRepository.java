@@ -7,6 +7,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+
+import org.springframework.data.repository.query.Param;
+
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -40,6 +43,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     // ✅ Removed findAllByFilters — replaced by TransactionSpecification
     // PostgreSQL could not determine the data type of null parameters in that query
 
+
     @Query("""
            SELECT t FROM Transaction t
            WHERE t.user.id = :userId
@@ -48,6 +52,20 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
            ORDER BY t.transactionDate DESC
            """)
     List<Transaction> findTransactionsForExport(Long userId, int month, int year);
+
+
+    @Query("""
+           SELECT t FROM Transaction t
+           WHERE t.user.id = :userId
+           AND t.transactionDate BETWEEN :startDate AND :endDate
+           ORDER BY t.transactionDate DESC
+           """)
+    List<Transaction> findTransactionsForExport(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
 
     boolean existsByCategory_Id(Long id);
 }
