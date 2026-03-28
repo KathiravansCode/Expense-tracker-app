@@ -33,7 +33,7 @@ public class AlertServiceImpl implements AlertService {
     public AlertServiceImpl(AlertRepository alertRepository,
                             TransactionRepository transactionRepository,
                             BudgetRepository budgetRepository,
-                            @Lazy List<AlertStrategy> alertStrategies,
+                            List<AlertStrategy> alertStrategies,
                             SseEmitterService sseEmitterService) {
         this.alertRepository = alertRepository;
         this.transactionRepository = transactionRepository;

@@ -47,7 +47,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
            DELETE FROM Alert a
            WHERE a.user.id = :userId
            AND a.category.id = :categoryId
-           AND a.alertType IN ('BUDGET_WARNING','BUDGET_EXCEEDED')
+           AND a.alertType IN ('BUDGET_THRESHOLD','BUDGET_EXCEEDED')
            AND a.createdAt BETWEEN :startDate AND :endDate
            """)
     void deleteBudgetAlerts(
