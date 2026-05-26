@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name="budgets",uniqueConstraints = {
         @UniqueConstraint(
-                columnNames = {"user_id", "category_id", "month", "year"}
+                columnNames = {"user_id", "category_id", "budget_month", "budget_year"}
         )
 })
 @NoArgsConstructor

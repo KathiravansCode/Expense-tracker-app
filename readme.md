@@ -198,6 +198,7 @@ User auth (JWT)
 
 Basic React setup
 
+---
 🟢 Day 2 – Expense Module
 
 Expense CRUD
