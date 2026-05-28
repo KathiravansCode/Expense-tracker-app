@@ -41,6 +41,16 @@ public class User {
     @OneToMany(mappedBy="user",cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Alert> alerts=new ArrayList<>();
 
+    // ── Fix: cascade deletes to password_reset_tokens ─────────────
+    // Without this, deleting a user whose password was reset via
+    // forgot-password fails with:
+    //   ERROR: update or delete on table "users" violates foreign key
+    //   constraint on table "password_reset_tokens"
+    // Adding cascade ALL + orphanRemoval ensures Hibernate deletes all
+    // associated reset tokens before removing the user row.
+    @OneToMany(mappedBy="user",cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PasswordResetToken> passwordResetTokens=new ArrayList<>();
+
     @Column(name="created_at",nullable=false,updatable = false)
     private LocalDateTime createdAt;
 
