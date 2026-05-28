@@ -8,6 +8,7 @@ import com.expensetrackaer.app.exception.ResourceNotFoundException;
 import com.expensetrackaer.app.repository.PasswordResetTokenRepository;
 import com.expensetrackaer.app.repository.UserRepository;
 import com.expensetrackaer.app.security.JwtUtil;
+import com.expensetrackaer.app.service.EmailService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -21,7 +22,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +37,7 @@ class AuthServiceImplTest {
     @Mock private JwtUtil jwtUtil;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private EmailService emailService; // Added mock component dependency
 
     @InjectMocks private AuthServiceImpl authService;
 
@@ -131,12 +132,12 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void forgotPassword_success_deletesExisting_andReturnsToken() {
+    void forgotPassword_success_deletesExisting_sendsMail_andReturnsOmittedResponse() {
         ForgotPasswordRequest request = new ForgotPasswordRequest();
-        request.setEmail("a@example.com");
+        request.setEmail("kathir@example.com");
 
-        User user = User.builder().id(7L).name("A").email("a@example.com").password("x").build();
-        when(userRepository.findByEmail("a@example.com")).thenReturn(Optional.of(user));
+        User user = User.builder().id(7L).name("Kathiravan").email("kathir@example.com").password("x").build();
+        when(userRepository.findByEmail("kathir@example.com")).thenReturn(Optional.of(user));
         when(resetTokenRepository.save(any(PasswordResetToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
         LocalDateTime before = LocalDateTime.now();
@@ -152,12 +153,12 @@ class AuthServiceImplTest {
         assertThat(saved.getExpiresAt()).isAfter(before);
         assertThat(saved.getExpiresAt()).isBefore(after.plusMinutes(16));
 
+        // Verifying token payload was passed into the service layer safely
+        verify(emailService).sendPasswordResetEmail(eq("kathir@example.com"), anyString(), eq("Kathiravan"));
+
+        // Verifying payload privacy updates
         assertThat(response.getSuccess()).isTrue();
-        assertThat(response.getData()).isInstanceOf(Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) response.getData();
-        assertThat(data.get("resetToken")).isInstanceOf(String.class);
-        assertThat((String) data.get("resetToken")).isNotBlank();
+        assertThat(response.getData()).isNull();
     }
 
     @Test
@@ -240,4 +241,3 @@ class AuthServiceImplTest {
         assertThat(resetTokenCaptor.getValue().getIsUsed()).isTrue();
     }
 }
-

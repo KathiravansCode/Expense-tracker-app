@@ -9,6 +9,7 @@ import com.expensetrackaer.app.repository.PasswordResetTokenRepository;
 import com.expensetrackaer.app.repository.UserRepository;
 import com.expensetrackaer.app.security.JwtUtil;
 import com.expensetrackaer.app.service.AuthService;
+import com.expensetrackaer.app.service.EmailService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,7 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,23 +31,25 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService; // Injected email infrastructure module
 
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
                            PasswordResetTokenRepository resetTokenRepository,
                            JwtUtil jwtUtil,
                            AuthenticationManager authenticationManager,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           EmailService emailService) {
         this.userRepository = userRepository;
         this.resetTokenRepository = resetTokenRepository;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     @Override
     public UserResponse registerUser(RegisterUserRequest userRequest) {
-
         if (userRepository.existsByEmail(userRequest.getEmail())) {
             throw new BusinessValidationException("User already exists with this email");
         }
@@ -58,11 +61,6 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
-
-        // ✅ No category seeding here anymore.
-        // Global default categories are seeded ONCE by DatabaseSeeder at app startup
-        // and are shared across all users — no per-user duplication needed.
-
         return mapToUser(savedUser);
     }
 
@@ -70,17 +68,14 @@ public class AuthServiceImpl implements AuthService {
         return UserResponse.builder()
                 .id(savedUser.getId())
                 .name(savedUser.getName())
-                .email(savedUser.getEmail()) // ✅ Fixed: was getPassword() before
+                .email(savedUser.getEmail())
                 .createdAt(savedUser.getCreatedAt())
                 .build();
     }
 
-    // ── Login ──────────────────────────────────────────────────────
     @Override
     public LoginResponse login(LoginRequest request) {
-
         try {
-            // Spring Security validates email + password against DB
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getEmail(),
@@ -94,7 +89,6 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Generate token with email + userId embedded
         String token = jwtUtil.generateToken(user.getEmail(), user.getId());
 
         return LoginResponse.builder()
@@ -104,13 +98,9 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    // ── Forgot Password ───────────────────────────────────────────
-    // Since there's no frontend yet, we return the token directly in
-    // the response so you can test in Postman.
-    // When frontend is ready: replace the return with an email call.
+    // ── Secure Forgot Password Implementation ───────────────────────────────────────────
     @Override
     public ApiResponse forgotPassword(ForgotPasswordRequest request) {
-
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("No account found with this email"));
 
@@ -129,41 +119,35 @@ public class AuthServiceImpl implements AuthService {
 
         resetTokenRepository.save(resetToken);
 
-        // TODO: When frontend is ready, replace this with:
-        // emailService.sendResetEmail(user.getEmail(), token);
-        // and return: new ApiResponse(true, "Reset link sent to your email", null);
+        // Dispatches email asynchronously to user profile mailbox endpoints safely
+        emailService.sendPasswordResetEmail(user.getEmail(), token, user.getName());
 
+        // Secure Response: Token omitted from data node block payload architectures entirely
         return new ApiResponse(
                 true,
-                "Use this token to reset your password (valid for 15 minutes)",
-                Map.of("resetToken", token)
+                "If the email address matches an active profile, a secure validation token has been successfully sent.",
+                null
         );
     }
 
-    // ── Reset Password ────────────────────────────────────────────
     @Override
     public ApiResponse resetPassword(ResetPasswordRequest request) {
-
         PasswordResetToken resetToken = resetTokenRepository
                 .findByToken(request.getToken())
                 .orElseThrow(() -> new BusinessValidationException("Invalid or expired reset token"));
 
-        // Check if already used
         if (resetToken.getIsUsed()) {
             throw new BusinessValidationException("This reset token has already been used");
         }
 
-        // Check if expired
         if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessValidationException("Reset token has expired. Please request a new one");
         }
 
-        // Update password
         User user = resetToken.getUser();
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        // Mark token as used so it can't be reused
         resetToken.setIsUsed(true);
         resetTokenRepository.save(resetToken);
 
