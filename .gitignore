@@ -38,4 +38,4 @@ build/
 .env
 application-local.properties
 application-dev.properties
-
+application.properties
